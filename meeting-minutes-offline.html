@@ -399,6 +399,22 @@ body {
       </div>
     </div>
 
+    <!-- 手動入力フォールバック -->
+    <div>
+      <div class="section-label" style="display:flex;align-items:center;justify-content:space-between">
+        <span>手動テキスト入力（音声認識が使えない場合）</span>
+        <button onclick="toggleManual()" id="manualToggle" style="background:none;border:0.5px solid var(--border2);border-radius:6px;color:var(--text3);font-size:11px;padding:3px 8px;cursor:pointer;font-family:inherit">開く</button>
+      </div>
+      <div id="manualArea" style="display:none;margin-top:8px">
+        <div style="display:flex;gap:7px;margin-bottom:7px">
+          <select id="manualSpk" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:7px 9px;color:var(--text);font-size:13px;font-family:inherit;flex:1"></select>
+          <button onclick="addManualUtt()" style="padding:7px 14px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">追加</button>
+        </div>
+        <textarea id="manualText" placeholder="発言内容を入力してEnterまたは「追加」ボタンを押してください" style="width:100%;padding:9px 11px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:9px;color:var(--text);font-size:13px;font-family:inherit;min-height:70px;resize:vertical;line-height:1.6" onkeydown="if(event.ctrlKey&&event.key==='Enter')addManualUtt()"></textarea>
+        <div style="font-size:11px;color:var(--text3);margin-top:5px">Ctrl+Enter でも追加できます</div>
+      </div>
+    </div>
+
     <div style="height:10px"></div>
   </div>
 
@@ -546,6 +562,31 @@ function renderSpkSwitch() {
       onclick="selectSpk(${i})">${s.name}</button>`).join('');
   document.getElementById('curSpkName').textContent =
     speakers.length ? speakers[curSpk].name : '—';
+  // 手動入力用セレクトも更新
+  const sel = document.getElementById('manualSpk');
+  if (sel) {
+    sel.innerHTML = speakers.map((s,i) => `<option value="${i}">${s.name}</option>`).join('');
+  }
+}
+
+// ── 手動入力 ──
+function toggleManual() {
+  const area = document.getElementById('manualArea');
+  const btn  = document.getElementById('manualToggle');
+  const open = area.style.display === 'none';
+  area.style.display = open ? 'block' : 'none';
+  btn.textContent = open ? '閉じる' : '開く';
+  if (open) renderSpkSwitch(); // セレクトを最新化
+}
+
+function addManualUtt() {
+  const text = document.getElementById('manualText').value.trim();
+  if (!text) { showToast('テキストを入力してください'); return; }
+  const spkIdx = parseInt(document.getElementById('manualSpk').value) || 0;
+  commitUtt(text, spkIdx);
+  document.getElementById('manualText').value = '';
+  document.getElementById('genBtn').disabled = false;
+  showToast('追加しました ✓');
 }
 
 function selectSpk(i) {
@@ -611,18 +652,25 @@ function startRec() {
 }
 
 function stopRec() {
-  if (recognition) { recognition.onend = null; recognition.stop(); }
   isRec = false;
+  if (recognition) {
+    recognition.onend = null;
+    recognition.onerror = null;
+    try { recognition.stop(); } catch(e) {}
+  }
   clearInterval(timerIv);
+  // interim / pending を強制コミット
   if (pendingText.trim()) { commitUtt(pendingText.trim(), curSpk); pendingText = ''; }
   removeInterim();
 
   document.getElementById('micBtn').textContent = '🎤';
   document.getElementById('micBtn').classList.remove('on');
   document.getElementById('recTimer').classList.remove('on');
-  document.getElementById('recStatus').textContent = '録音完了';
+  document.getElementById('recStatus').textContent = utterances.length ? '録音完了 (' + utterances.length + '件)' : '録音完了';
   document.getElementById('recStatus').classList.remove('on');
-  if (utterances.length) document.getElementById('genBtn').disabled = false;
+  // utterances があれば必ずボタンを有効化
+  document.getElementById('genBtn').disabled = (utterances.length === 0);
+  if (utterances.length === 0) showToast('発話が記録されませんでした。手動入力をお試しください。');
 }
 
 // ── 発話コミット ──
