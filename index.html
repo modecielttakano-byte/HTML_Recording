@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>議事録アシスタント</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --bg:  #0c0e14;
+  --bg2: #13151f;
+  --bg3: #1a1d2a;
+  --border:  rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text:  #e2e4ed;
+  --text2: #8b90a8;
+  --text3: #555a72;
+  --accent:  #4f8ef7;
+  --accent2: #6c63ff;
+  --red:   #f75f5f;
+  --green: #3ecf8e;
+  --amber: #f7a84f;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  display: flex; flex-direction: column;
+  font-size: 14px;
+}
+
+/* ── ヘッダー ── */
+.header {
+  padding: 14px 18px 12px;
+  border-bottom: 0.5px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  position: sticky; top: 0; z-index: 100;
+  background: var(--bg);
+}
+.logo-mark {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.header h1 { font-size: 15px; font-weight: 700; }
+.header p  { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.offline-badge {
+  margin-left: auto;
+  font-size: 10px; font-weight: 600;
+  background: rgba(62,207,142,0.15);
+  color: var(--green);
+  border: 0.5px solid rgba(62,207,142,0.3);
+  border-radius: 6px; padding: 3px 8px;
+  white-space: nowrap;
+}
+
+/* ── タブ ── */
+.tabs {
+  display: flex;
+  border-bottom: 0.5px solid var(--border);
+  position: sticky; top: 62px; z-index: 99;
+  background: var(--bg);
+}
+.tab-btn {
+  flex: 1; padding: 11px 4px;
+  background: none; border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text3); font-size: 12px;
+  cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  transition: all 0.2s;
+}
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-new {
+  background: var(--red); color: #fff;
+  border-radius: 8px; font-size: 10px;
+  padding: 1px 5px; font-weight: 700;
+  display: none;
+}
+.tab-new.show { display: inline; }
+
+/* ── パネル ── */
+.panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.panel.active { display: flex; }
+
+/* ── スクロールエリア ── */
+.scroll { flex: 1; overflow-y: auto; padding: 14px 14px 100px; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── セクション ── */
+.section-label {
+  font-size: 10px; color: var(--text3);
+  font-weight: 600; letter-spacing: 0.8px;
+  text-transform: uppercase; margin-bottom: 7px;
+}
+
+/* ── フォーム ── */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field.full { grid-column: 1 / -1; }
+.field label { font-size: 11px; color: var(--text2); }
+.field input, .field select, .field textarea {
+  padding: 9px 11px;
+  background: var(--bg3);
+  border: 0.5px solid var(--border2);
+  border-radius: 9px;
+  color: var(--text); font-size: 13px; font-family: inherit;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: none; border-color: var(--accent);
+}
+.field input::placeholder, .field textarea::placeholder { color: var(--text3); }
+.field textarea { resize: vertical; min-height: 60px; line-height: 1.6; }
+
+/* ── 話者 ── */
+.speaker-list { display: flex; flex-direction: column; gap: 7px; }
+.speaker-row {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg3); border: 0.5px solid var(--border);
+  border-radius: 10px; padding: 9px 11px;
+}
+.spk-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.speaker-row input {
+  flex: 1; background: none; border: none;
+  color: var(--text); font-size: 13px; font-family: inherit;
+  padding: 0;
+}
+.speaker-row input:focus { outline: none; }
+.speaker-row input::placeholder { color: var(--text3); }
+.spk-remove {
+  background: none; border: none; cursor: pointer;
+  color: var(--text3); font-size: 15px; line-height: 1;
+  transition: color 0.15s; padding: 2px;
+}
+.spk-remove:hover { color: var(--red); }
+.add-spk {
+  padding: 9px; width: 100%;
+  background: none; border: 0.5px dashed var(--border2);
+  border-radius: 10px; color: var(--text3);
+  font-size: 12px; cursor: pointer; font-family: inherit;
+  transition: all 0.2s; text-align: center;
+}
+.add-spk:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── 録音コントロール ── */
+.rec-card {
+  background: var(--bg3); border: 0.5px solid var(--border);
+  border-radius: 14px; padding: 15px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.rec-header { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
+.rec-timer {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px; font-weight: 600;
+  color: var(--text2); letter-spacing: 2px;
+}
+.rec-timer.on { color: var(--red); }
+.rec-info { text-align: right; }
+.rec-status { font-size: 11px; color: var(--text3); }
+.rec-status.on { color: var(--red); }
+.rec-current { font-size: 12px; color: var(--text2); margin-top: 2px; font-weight: 500; }
+
+.mic-btn {
+  width: 66px; height: 66px; border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  background: rgba(79,142,247,0.12);
+  color: var(--text); font-size: 28px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.mic-btn.on {
+  border-color: var(--red);
+  background: rgba(247,95,95,0.12);
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(247,95,95,0.3); }
+  50%      { box-shadow: 0 0 0 10px rgba(247,95,95,0); }
+}
+
+/* ── 話者チップ ── */
+.spk-switch { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; width: 100%; }
+.spk-chip {
+  padding: 5px 13px; border-radius: 20px;
+  border: 1.5px solid var(--border2);
+  background: var(--bg2); color: var(--text2);
+  font-size: 12px; cursor: pointer; font-family: inherit;
+  transition: all 0.15s;
+}
+.spk-chip.on { font-weight: 700; }
+
+/* ── 文字起こし ── */
+.transcript-box {
+  background: var(--bg3); border: 0.5px solid var(--border);
+  border-radius: 12px; min-height: 180px; max-height: 280px;
+  overflow-y: auto; padding: 11px;
+}
+.tx-placeholder { color: var(--text3); font-size: 13px; padding: 4px; }
+.utterance {
+  display: flex; gap: 9px; margin-bottom: 12px;
+  animation: fi 0.25s ease;
+}
+@keyframes fi { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; } }
+.utt-av {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+}
+.utt-name { font-size: 11px; font-weight: 600; margin-bottom: 3px; }
+.utt-time { font-weight: 400; color: var(--text3); margin-left: 4px; }
+.utt-text {
+  background: var(--bg2); border-radius: 4px 12px 12px 12px;
+  padding: 7px 10px; font-size: 13px; line-height: 1.65; color: var(--text);
+}
+.interim { font-size: 13px; color: var(--text3); font-style: italic; padding: 3px 11px; }
+
+/* ── フローティングボタン ── */
+.float-wrap {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  padding: 10px 14px 22px;
+  background: linear-gradient(to top, var(--bg) 65%, transparent);
+  z-index: 50;
+}
+.gen-btn {
+  width: 100%; padding: 15px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none; border-radius: 14px;
+  color: #fff; font-size: 15px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: opacity 0.2s, transform 0.1s;
+  box-shadow: 0 4px 20px rgba(79,142,247,0.25);
+}
+.gen-btn:hover { opacity: 0.9; }
+.gen-btn:active { transform: scale(0.98); }
+.gen-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+/* ── 議事録タブ ── */
+.minutes-scroll { flex: 1; overflow-y: auto; padding: 14px 14px 100px; }
+.minutes-card {
+  background: var(--bg3); border: 0.5px solid var(--border);
+  border-radius: 14px; padding: 18px;
+  font-size: 13px; line-height: 1.85;
+  color: var(--text); word-break: break-word;
+  min-height: 300px;
+}
+.minutes-empty { color: var(--text3); text-align: center; padding-top: 60px; font-size: 13px; }
+.minutes-empty .ico { font-size: 36px; margin-bottom: 10px; }
+
+/* 議事録内スタイル */
+.min-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+.min-meta { font-size: 12px; color: var(--text2); margin-bottom: 16px; line-height: 1.8; }
+.min-h2 {
+  font-size: 13px; font-weight: 700; color: var(--accent);
+  border-left: 3px solid var(--accent);
+  padding-left: 9px; margin: 18px 0 8px;
+}
+.min-li { padding: 3px 0 3px 14px; position: relative; font-size: 13px; line-height: 1.7; }
+.min-li::before { content: '•'; position: absolute; left: 3px; color: var(--text3); }
+.min-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+.min-table th {
+  background: var(--bg2); color: var(--text2);
+  padding: 7px 9px; text-align: left;
+  border: 0.5px solid var(--border2); font-weight: 600;
+}
+.min-table td {
+  padding: 7px 9px; border: 0.5px solid var(--border);
+  vertical-align: top; color: var(--text);
+}
+.min-note { font-size: 11px; color: var(--text3); margin-top: 16px; padding-top: 12px; border-top: 0.5px solid var(--border); }
+.min-divider { border: none; border-top: 0.5px solid var(--border); margin: 14px 0; }
+.spk-log-item { display: flex; gap: 8px; margin-bottom: 10px; align-items: flex-start; }
+.spk-log-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.spk-log-body { font-size: 13px; line-height: 1.65; }
+.spk-log-name { font-weight: 600; font-size: 12px; margin-bottom: 2px; }
+
+.min-actions {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  padding: 10px 14px 22px;
+  background: linear-gradient(to top, var(--bg) 65%, transparent);
+  display: grid; grid-template-columns: 1fr 1fr; gap: 9px;
+  z-index: 50;
+}
+.act-btn {
+  padding: 13px; background: var(--bg3);
+  border: 0.5px solid var(--border2); border-radius: 12px;
+  color: var(--text); font-size: 13px; font-weight: 500;
+  cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.15s;
+}
+.act-btn:hover { border-color: var(--accent); color: var(--accent); }
+.act-btn:active { transform: scale(0.97); }
+
+/* ── 設定タブ ── */
+.settings-scroll { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.set-card { background: var(--bg3); border: 0.5px solid var(--border); border-radius: 14px; padding: 15px; }
+.set-card h3 { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 11px; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+.set-row:last-child { margin-bottom: 0; }
+.set-row label { font-size: 13px; }
+.set-row select {
+  background: var(--bg2); border: 0.5px solid var(--border2);
+  border-radius: 8px; padding: 6px 10px;
+  color: var(--text); font-size: 12px; font-family: inherit;
+}
+.help-list { padding-left: 16px; line-height: 2.1; font-size: 12px; color: var(--text3); }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 88px; left: 50%; transform: translateX(-50%);
+  background: var(--bg2); border: 0.5px solid var(--border2);
+  border-radius: 10px; padding: 9px 16px;
+  font-size: 13px; z-index: 300;
+  opacity: 0; transition: opacity 0.2s; pointer-events: none;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ヘッダー -->
+<div class="header">
+  <div class="logo-mark">🎙</div>
+  <div>
+    <h1>議事録アシスタント</h1>
+    <p>音声 → 話者分離 → 議事録</p>
+  </div>
+  <span class="offline-badge">✓ オフライン</span>
+</div>
+
+<!-- タブ -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab(0)">🎙 録音</button>
+  <button class="tab-btn" onclick="switchTab(1)">📄 議事録<span class="tab-new" id="newBadge">NEW</span></button>
+  <button class="tab-btn" onclick="switchTab(2)">⚙ 設定</button>
+</div>
+
+<!-- ─── 録音タブ ─── -->
+<div class="panel active" id="p0">
+  <div class="scroll">
+
+    <div>
+      <div class="section-label">会議情報</div>
+      <div class="info-grid">
+        <div class="field full">
+          <label>会議名</label>
+          <input id="mtTitle" type="text" placeholder="例: 週次定例">
+        </div>
+        <div class="field">
+          <label>日付</label>
+          <input id="mtDate" type="date">
+        </div>
+        <div class="field">
+          <label>場所</label>
+          <input id="mtPlace" type="text" placeholder="例: Zoom / 会議室A">
+        </div>
+        <div class="field full">
+          <label>議題（任意）</label>
+          <textarea id="mtAgenda" placeholder="例: ・Q3 進捗確認&#10;・次期施策の検討"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">話者登録</div>
+      <div class="speaker-list" id="speakerList"></div>
+      <button class="add-spk" onclick="addSpeaker()">＋ 話者を追加（最大6人）</button>
+    </div>
+
+    <div class="rec-card">
+      <div class="rec-header">
+        <div>
+          <div class="rec-timer" id="recTimer">00:00</div>
+          <div class="rec-status" id="recStatus">待機中</div>
+        </div>
+        <div class="rec-info">
+          <div style="font-size:11px;color:var(--text3)">現在の話者</div>
+          <div class="rec-current" id="curSpkName">—</div>
+        </div>
+      </div>
+      <button class="mic-btn" id="micBtn" onclick="toggleRec()">🎤</button>
+      <div class="spk-switch" id="spkSwitch"></div>
+    </div>
+
+    <div>
+      <div class="section-label">文字起こし（話者別）</div>
+      <div class="transcript-box" id="txBox">
+        <div class="tx-placeholder">録音を開始するとここに表示されます</div>
+      </div>
+    </div>
+
+    <div style="height:10px"></div>
+  </div>
+
+  <div class="float-wrap">
+    <button class="gen-btn" id="genBtn" onclick="genMinutes()" disabled>
+      📋 議事録を作成
+    </button>
+  </div>
+</div>
+
+<!-- ─── 議事録タブ ─── -->
+<div class="panel" id="p1">
+  <div class="minutes-scroll">
+    <div class="minutes-card" id="minOut">
+      <div class="minutes-empty">
+        <div class="ico">📋</div>
+        録音後に「議事録を作成」を<br>押すと、ここに表示されます
+      </div>
+    </div>
+  </div>
+  <div class="min-actions">
+    <button class="act-btn" onclick="copyMin()">📋 コピー</button>
+    <button class="act-btn" onclick="dlMin()">💾 ダウンロード</button>
+  </div>
+</div>
+
+<!-- ─── 設定タブ ─── -->
+<div class="panel" id="p2">
+  <div class="settings-scroll">
+    <div class="set-card">
+      <h3>🌐 音声認識</h3>
+      <div class="set-row">
+        <label>言語</label>
+        <select id="langSel">
+          <option value="ja-JP">日本語</option>
+          <option value="en-US">English</option>
+          <option value="zh-CN">中文</option>
+          <option value="ko-KR">한국어</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="set-card">
+      <h3>📝 議事録スタイル</h3>
+      <div class="set-row">
+        <label>テンプレート</label>
+        <select id="tmplSel">
+          <option value="standard">標準（推奨）</option>
+          <option value="brief">簡潔版</option>
+          <option value="detail">詳細版（全発言掲載）</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="set-card">
+      <h3>ℹ 使い方</h3>
+      <ol class="help-list">
+        <li>話者を登録する（録音前）</li>
+        <li>🎤 ボタンで録音開始</li>
+        <li>発話者が変わったら名前チップをタップ</li>
+        <li>録音停止 → 「議事録を作成」</li>
+        <li>議事録タブで確認・コピー・保存</li>
+      </ol>
+    </div>
+
+    <div class="set-card" style="font-size:12px;color:var(--text3);line-height:1.8">
+      <h3 style="margin-bottom:8px">🔒 プライバシー</h3>
+      音声・テキストデータはすべてデバイス内で処理されます。<br>
+      外部サーバーへの送信は一切行いません。
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── カラー ──
+const COLORS = [
+  { c:'#4f8ef7', bg:'rgba(79,142,247,0.15)' },
+  { c:'#3ecf8e', bg:'rgba(62,207,142,0.15)' },
+  { c:'#f7a84f', bg:'rgba(247,168,79,0.15)'  },
+  { c:'#c084fc', bg:'rgba(192,132,252,0.15)' },
+  { c:'#f75f9f', bg:'rgba(247,95,159,0.15)'  },
+  { c:'#4fd6f7', bg:'rgba(79,214,247,0.15)'  },
+];
+
+// ── 状態 ──
+let speakers = [];
+let curSpk = 0;
+let isRec = false;
+let recognition = null;
+let timerIv = null;
+let secs = 0;
+let utterances = []; // {spkIdx, text, time}
+let pendingText = '';
+let hasMin = false;
+
+// ── 初期化 ──
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('mtDate').value = new Date().toISOString().slice(0,10);
+  addSpeaker('田中');
+  addSpeaker('鈴木');
+});
+
+// ── タブ ──
+function switchTab(n) {
+  ['p0','p1','p2'].forEach((id,i) => {
+    document.getElementById(id).classList.toggle('active', i===n);
+  });
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===n));
+  if (n===1) document.getElementById('newBadge').classList.remove('show');
+}
+
+// ── 話者 ──
+function addSpeaker(name='') {
+  if (speakers.length >= 6) { showToast('話者は最大6人まで'); return; }
+  const i = speakers.length;
+  speakers.push({ name: name || `話者${i+1}`, ...COLORS[i] });
+  renderSpeakerList();
+  renderSpkSwitch();
+}
+
+function removeSpeaker(i) {
+  if (speakers.length <= 1) return;
+  speakers.splice(i, 1);
+  if (curSpk >= speakers.length) curSpk = speakers.length - 1;
+  renderSpeakerList();
+  renderSpkSwitch();
+}
+
+function renderSpeakerList() {
+  document.getElementById('speakerList').innerHTML = speakers.map((s,i) => `
+    <div class="speaker-row">
+      <div class="spk-dot" style="background:${s.c}"></div>
+      <input type="text" value="${s.name}" placeholder="名前"
+        oninput="speakers[${i}].name=this.value;renderSpkSwitch()">
+      <button class="spk-remove" onclick="removeSpeaker(${i})">✕</button>
+    </div>`).join('');
+}
+
+function renderSpkSwitch() {
+  document.getElementById('spkSwitch').innerHTML = speakers.map((s,i) => `
+    <button class="spk-chip ${i===curSpk?'on':''}"
+      style="${i===curSpk?`border-color:${s.c};color:${s.c};background:${s.bg}`:''}"
+      onclick="selectSpk(${i})">${s.name}</button>`).join('');
+  document.getElementById('curSpkName').textContent =
+    speakers.length ? speakers[curSpk].name : '—';
+}
+
+function selectSpk(i) {
+  if (pendingText.trim() && isRec) {
+    commitUtt(pendingText.trim(), curSpk);
+    pendingText = '';
+  }
+  curSpk = i;
+  renderSpkSwitch();
+}
+
+// ── 録音 ──
+function toggleRec() {
+  if (!isRec) startRec(); else stopRec();
+}
+
+function startRec() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('Chrome または Edge でご利用ください。'); return; }
+  if (!speakers.length) { showToast('話者を1人以上登録してください'); return; }
+
+  utterances = [];
+  pendingText = '';
+  document.getElementById('txBox').innerHTML = '';
+
+  recognition = new SR();
+  recognition.lang = document.getElementById('langSel').value;
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  recognition.onresult = e => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        pendingText += e.results[i][0].transcript;
+        commitUtt(pendingText.trim(), curSpk);
+        pendingText = '';
+      } else {
+        interim += e.results[i][0].transcript;
+      }
+    }
+    showInterim(interim);
+  };
+  recognition.onerror = e => { if (e.error !== 'no-speech') showToast('エラー: '+e.error); };
+  recognition.onend = () => { if (isRec) recognition.start(); };
+  recognition.start();
+
+  isRec = true;
+  document.getElementById('micBtn').textContent = '⏹';
+  document.getElementById('micBtn').classList.add('on');
+  document.getElementById('recTimer').classList.add('on');
+  document.getElementById('recStatus').textContent = '録音中...';
+  document.getElementById('recStatus').classList.add('on');
+  document.getElementById('genBtn').disabled = true;
+
+  secs = 0;
+  timerIv = setInterval(() => {
+    secs++;
+    const m = String(Math.floor(secs/60)).padStart(2,'0');
+    const s = String(secs%60).padStart(2,'0');
+    document.getElementById('recTimer').textContent = m+':'+s;
+  }, 1000);
+}
+
+function stopRec() {
+  if (recognition) { recognition.onend = null; recognition.stop(); }
+  isRec = false;
+  clearInterval(timerIv);
+  if (pendingText.trim()) { commitUtt(pendingText.trim(), curSpk); pendingText = ''; }
+  removeInterim();
+
+  document.getElementById('micBtn').textContent = '🎤';
+  document.getElementById('micBtn').classList.remove('on');
+  document.getElementById('recTimer').classList.remove('on');
+  document.getElementById('recStatus').textContent = '録音完了';
+  document.getElementById('recStatus').classList.remove('on');
+  if (utterances.length) document.getElementById('genBtn').disabled = false;
+}
+
+// ── 発話コミット ──
+function commitUtt(text, spkIdx) {
+  if (!text) return;
+  const spk = speakers[spkIdx];
+  const now = new Date();
+  const time = now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+
+  if (utterances.length && utterances[utterances.length-1].spkIdx === spkIdx) {
+    utterances[utterances.length-1].text += '　'+text;
+    const lastEl = document.getElementById('utt-'+(utterances.length-1));
+    if (lastEl) lastEl.querySelector('.utt-text').textContent = utterances[utterances.length-1].text;
+  } else {
+    utterances.push({ spkIdx, text, time });
+    appendUttUI(utterances.length-1, spkIdx, text, time, spk);
+  }
+  const box = document.getElementById('txBox');
+  box.scrollTop = box.scrollHeight;
+}
+
+function appendUttUI(idx, spkIdx, text, time, spk) {
+  const box = document.getElementById('txBox');
+  const init = spk.name.slice(0,2);
+  const d = document.createElement('div');
+  d.className = 'utterance'; d.id = 'utt-'+idx;
+  d.innerHTML = `
+    <div class="utt-av" style="background:${spk.bg};color:${spk.c}">${init}</div>
+    <div style="flex:1">
+      <div class="utt-name" style="color:${spk.c}">${spk.name}<span class="utt-time">${time}</span></div>
+      <div class="utt-text">${text}</div>
+    </div>`;
+  box.appendChild(d);
+}
+
+function showInterim(t) {
+  removeInterim();
+  if (!t) return;
+  const box = document.getElementById('txBox');
+  const d = document.createElement('div');
+  d.className='interim'; d.id='interim'; d.textContent='…'+t;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
+function removeInterim() {
+  const el = document.getElementById('interim');
+  if (el) el.remove();
+}
+
+// ── 議事録生成（テンプレートベース） ──
+function genMinutes() {
+  if (!utterances.length) return;
+  switchTab(1);
+
+  const title   = document.getElementById('mtTitle').value  || '会議';
+  const date    = document.getElementById('mtDate').value   || new Date().toLocaleDateString('ja-JP');
+  const place   = document.getElementById('mtPlace').value  || '—';
+  const agenda  = document.getElementById('mtAgenda').value || '';
+  const tmpl    = document.getElementById('tmplSel').value;
+  const participantNames = [...new Set(utterances.map(u => speakers[u.spkIdx]?.name || '不明'))].join('、');
+
+  // ── 発言を話者ごとに集計 ──
+  const spkMap = {}; // spkIdx -> [text, ...]
+  utterances.forEach(u => {
+    if (!spkMap[u.spkIdx]) spkMap[u.spkIdx] = [];
+    spkMap[u.spkIdx].push(u.text);
+  });
+
+  // ── キーワード抽出（簡易） ──
+  const allText = utterances.map(u=>u.text).join('。');
+  const decisions = extractDecisions(allText);
+  const actions   = extractActions(allText, speakers);
+  const nextSteps = extractNextSteps(allText);
+
+  // ── テンプレート別HTML生成 ──
+  let html = '';
+
+  if (tmpl === 'brief') {
+    html = buildBrief({ title, date, place, participantNames, agenda, decisions, actions, nextSteps, allText });
+  } else if (tmpl === 'detail') {
+    html = buildDetail({ title, date, place, participantNames, agenda, utterances, decisions, actions, nextSteps });
+  } else {
+    html = buildStandard({ title, date, place, participantNames, agenda, utterances, spkMap, decisions, actions, nextSteps });
+  }
+
+  document.getElementById('minOut').innerHTML = html;
+  hasMin = true;
+  document.getElementById('newBadge').classList.add('show');
+}
+
+// ── キーワード系抽出（ルールベース） ──
+function extractDecisions(text) {
+  const patterns = ['決定', 'に決まり', 'に決めまし', 'とします', 'にします', '承認', '合意', '確定', 'で行きます', 'でいきます', 'で進めます', 'に進めます'];
+  const sentences = text.split(/[。！？\n]/);
+  return sentences.filter(s => s.length > 3 && patterns.some(p => s.includes(p))).slice(0,6);
+}
+
+function extractActions(text, spks) {
+  const patterns = ['お願いします', 'してください', 'を担当', 'が担当', 'に確認', 'を確認', 'を作成', 'を送付', 'を共有', 'を準備', 'を対応', '対応します', 'します', 'をします'];
+  const sentences = text.split(/[。！？\n]/);
+  return sentences
+    .filter(s => s.length > 4 && patterns.some(p => s.includes(p)))
+    .slice(0,8)
+    .map(s => {
+      // 話者名マッチング
+      const matched = spks.find(sp => s.includes(sp.name));
+      return { assignee: matched ? matched.name : '—', task: s.trim() };
+    });
+}
+
+function extractNextSteps(text) {
+  const patterns = ['次回', '来週', '来月', 'までに', '以降', 'フォロー', '確認します', '連絡します', '報告します'];
+  const sentences = text.split(/[。！？\n]/);
+  return sentences.filter(s => s.length > 3 && patterns.some(p => s.includes(p))).slice(0,4);
+}
+
+// ── 標準テンプレート ──
+function buildStandard({ title, date, place, participantNames, agenda, utterances, spkMap, decisions, actions, nextSteps }) {
+  const agendaHtml = agenda
+    ? agenda.split('\n').filter(Boolean).map(a=>`<div class="min-li">${a.replace(/^[・\-]/,'').trim()}</div>`).join('')
+    : '<div class="min-li">（記録なし）</div>';
+
+  // 話者別サマリー
+  const spkSummary = Object.entries(spkMap).map(([idx, texts]) => {
+    const spk = speakers[idx];
+    if (!spk) return '';
+    const preview = texts.join('。').slice(0,120) + (texts.join('。').length>120?'…':'');
+    return `<div class="spk-log-item">
+      <div class="spk-log-dot" style="background:${spk.c}"></div>
+      <div class="spk-log-body">
+        <div class="spk-log-name" style="color:${spk.c}">${spk.name}</div>
+        <div>${preview}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const decHtml = decisions.length
+    ? decisions.map(d=>`<div class="min-li">${d.trim()}</div>`).join('')
+    : '<div class="min-li">（特になし）</div>';
+
+  const actRows = actions.length
+    ? actions.map(a=>`<tr><td>${a.assignee}</td><td>${a.task}</td><td>—</td></tr>`).join('')
+    : '<tr><td colspan="3" style="color:var(--text3);text-align:center">（特になし）</td></tr>';
+
+  const nxtHtml = nextSteps.length
+    ? nextSteps.map(n=>`<div class="min-li">${n.trim()}</div>`).join('')
+    : '<div class="min-li">（記録なし）</div>';
+
+  return `
+    <div class="min-title">${title}</div>
+    <div class="min-meta">
+      📅 ${date}　📍 ${place}<br>
+      👥 ${participantNames}
+    </div>
+    <hr class="min-divider">
+
+    <div class="min-h2">1. 議題</div>
+    ${agendaHtml}
+
+    <div class="min-h2">2. 発言概要（話者別）</div>
+    ${spkSummary}
+
+    <div class="min-h2">3. 決定事項</div>
+    ${decHtml}
+
+    <div class="min-h2">4. アクションアイテム</div>
+    <table class="min-table">
+      <thead><tr><th>担当</th><th>タスク</th><th>期限</th></tr></thead>
+      <tbody>${actRows}</tbody>
+    </table>
+
+    <div class="min-h2">5. 次回・フォローアップ</div>
+    ${nxtHtml}
+
+    <div class="min-note">※ テンプレート自動生成。内容をご確認・編集ください。</div>`;
+}
+
+// ── 簡潔テンプレート ──
+function buildBrief({ title, date, place, participantNames, decisions, actions, nextSteps }) {
+  const decHtml = decisions.length
+    ? decisions.map(d=>`<div class="min-li">${d.trim()}</div>`).join('')
+    : '<div class="min-li">（特になし）</div>';
+  const actRows = actions.length
+    ? actions.map(a=>`<tr><td>${a.assignee}</td><td>${a.task}</td></tr>`).join('')
+    : '<tr><td colspan="2" style="color:var(--text3);text-align:center">（特になし）</td></tr>';
+
+  return `
+    <div class="min-title">${title}</div>
+    <div class="min-meta">📅 ${date}　📍 ${place}　👥 ${participantNames}</div>
+    <hr class="min-divider">
+    <div class="min-h2">決定事項</div>
+    ${decHtml}
+    <div class="min-h2">アクションアイテム</div>
+    <table class="min-table">
+      <thead><tr><th>担当</th><th>タスク</th></tr></thead>
+      <tbody>${actRows}</tbody>
+    </table>
+    <div class="min-note">※ 簡潔版・自動生成。</div>`;
+}
+
+// ── 詳細テンプレート（全発言掲載） ──
+function buildDetail({ title, date, place, participantNames, agenda, utterances, decisions, actions, nextSteps }) {
+  const agendaHtml = agenda
+    ? agenda.split('\n').filter(Boolean).map(a=>`<div class="min-li">${a.replace(/^[・\-]/,'').trim()}</div>`).join('')
+    : '<div class="min-li">（記録なし）</div>';
+
+  const uttHtml = utterances.map(u => {
+    const spk = speakers[u.spkIdx];
+    if (!spk) return '';
+    return `<div class="spk-log-item">
+      <div class="spk-log-dot" style="background:${spk.c}"></div>
+      <div class="spk-log-body">
+        <div class="spk-log-name" style="color:${spk.c}">${spk.name} <span style="color:var(--text3);font-weight:400">${u.time}</span></div>
+        <div>${u.text}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const decHtml = decisions.length
+    ? decisions.map(d=>`<div class="min-li">${d.trim()}</div>`).join('')
+    : '<div class="min-li">（特になし）</div>';
+
+  const actRows = actions.length
+    ? actions.map(a=>`<tr><td>${a.assignee}</td><td>${a.task}</td><td>—</td></tr>`).join('')
+    : '<tr><td colspan="3" style="color:var(--text3);text-align:center">（特になし）</td></tr>';
+
+  const nxtHtml = nextSteps.length
+    ? nextSteps.map(n=>`<div class="min-li">${n.trim()}</div>`).join('')
+    : '<div class="min-li">（記録なし）</div>';
+
+  return `
+    <div class="min-title">${title}</div>
+    <div class="min-meta">📅 ${date}　📍 ${place}<br>👥 ${participantNames}</div>
+    <hr class="min-divider">
+
+    <div class="min-h2">1. 議題</div>
+    ${agendaHtml}
+
+    <div class="min-h2">2. 発言記録（全文）</div>
+    ${uttHtml}
+
+    <div class="min-h2">3. 決定事項</div>
+    ${decHtml}
+
+    <div class="min-h2">4. アクションアイテム</div>
+    <table class="min-table">
+      <thead><tr><th>担当</th><th>タスク</th><th>期限</th></tr></thead>
+      <tbody>${actRows}</tbody>
+    </table>
+
+    <div class="min-h2">5. 次回・フォローアップ</div>
+    ${nxtHtml}
+
+    <div class="min-note">※ 詳細版（全発言掲載）・自動生成。内容をご確認ください。</div>`;
+}
+
+// ── コピー・ダウンロード ──
+function copyMin() {
+  if (!hasMin) { showToast('まず議事録を作成してください'); return; }
+  const text = document.getElementById('minOut').innerText;
+  navigator.clipboard.writeText(text).then(() => showToast('コピーしました ✓'));
+}
+
+function dlMin() {
+  if (!hasMin) { showToast('まず議事録を作成してください'); return; }
+  const text = document.getElementById('minOut').innerText;
+  const title = document.getElementById('mtTitle').value || '議事録';
+  const date  = document.getElementById('mtDate').value  || new Date().toISOString().slice(0,10);
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${date}_${title}.txt`;
+  a.click();
+}
+
+// ── Toast ──
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
