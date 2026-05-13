@@ -436,6 +436,7 @@ body {
     </div>
   </div>
   <div class="min-actions">
+    <button class="act-btn mail-btn" onclick="sendMail()" style="grid-column:1/-1;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;font-weight:700;box-shadow:0 4px 20px rgba(79,142,247,0.25)">📧 メールで送信</button>
     <button class="act-btn" onclick="copyMin()">📋 コピー</button>
     <button class="act-btn" onclick="dlMin()">💾 ダウンロード</button>
   </div>
@@ -491,6 +492,9 @@ body {
 <div class="toast" id="toast"></div>
 
 <script>
+// ── メール送信先（固定） ──
+const MAIL_TO = 'haruyuki-yoshida@kyoeikougyou.jp';
+
 // ── カラー ──
 const COLORS = [
   { c:'#4f8ef7', bg:'rgba(79,142,247,0.15)' },
@@ -516,7 +520,8 @@ let hasMin = false;
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('mtDate').value = new Date().toISOString().slice(0,10);
   addSpeaker('吉田');
-  addSpeaker('所長');
+  addSpeaker('島田');
+  addSpeaker('米村');
 });
 
 // ── タブ ──
@@ -944,6 +949,58 @@ function dlMin() {
   a.href = URL.createObjectURL(blob);
   a.download = `${date}_${title}.txt`;
   a.click();
+}
+
+// ── メール送信（スマホ最適化） ──
+async function sendMail() {
+  if (!hasMin) { showToast('まず議事録を作成してください'); return; }
+
+  const title   = document.getElementById('mtTitle').value || '会議';
+  const date    = document.getElementById('mtDate').value  || new Date().toISOString().slice(0,10);
+  const minText = document.getElementById('minOut').innerText;
+
+  const subject = `【議事録】${title} ${date}`;
+  const body =
+`お疲れ様です。吉田です。
+
+${date}に開催された${title}の議事録を送付いたします。
+ご確認のほどよろしくお願いいたします。
+
+──────────────
+${minText}
+──────────────`;
+
+  const fileName = `${date}_${title}.txt`;
+
+  // ① Web Share API でファイル添付（スマホ向け・最優先）
+  try {
+    const file = new File([minText], fileName, { type: 'text/plain' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: subject,
+        text: `宛先: ${MAIL_TO}\n\n${body}`
+      });
+      showToast(`送信先: ${MAIL_TO}`);
+      return;
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') return; // ユーザーがキャンセル
+    // それ以外はフォールバックへ
+  }
+
+  // ② フォールバック: ファイル保存 → mailto: 起動（添付は手動）
+  const blob = new Blob([minText], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName;
+  a.click();
+
+  showToast('ファイル保存 → メーラー起動。添付を確認してください');
+  setTimeout(() => {
+    window.location.href =
+      `mailto:${MAIL_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }, 600);
 }
 
 // ── Toast ──
