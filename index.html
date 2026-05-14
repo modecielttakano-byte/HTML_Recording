@@ -492,9 +492,6 @@ body {
 <div class="toast" id="toast"></div>
 
 <script>
-// ── メール送信先（固定） ──
-const MAIL_TO = 'haruyuki-yoshida@kyoeikougyou.jp';
-
 // ── カラー ──
 const COLORS = [
   { c:'#4f8ef7', bg:'rgba(79,142,247,0.15)' },
@@ -975,9 +972,7 @@ async function sendMail() {
 
   const subject = `【議事録】${title} ${date}`;
   const body =
-`お疲れ様です。吉田です。
-
-${date}に開催された${title}の議事録を送付いたします。
+`${date}に開催された${title}の議事録を送付いたします。
 ご確認のほどよろしくお願いいたします。
 
 ──────────────
@@ -993,9 +988,8 @@ ${minText}
       await navigator.share({
         files: [file],
         title: subject,
-        text: `宛先: ${MAIL_TO}\n\n${body}`
+        text: body
       });
-      showToast(`送信先: ${MAIL_TO}`);
       return;
     }
   } catch (err) {
@@ -1013,7 +1007,7 @@ ${minText}
   showToast('ファイル保存 → メーラー起動。添付を確認してください');
   setTimeout(() => {
     window.location.href =
-      `mailto:${MAIL_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   }, 600);
 }
 
