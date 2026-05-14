@@ -514,6 +514,7 @@ let timerIv = null;
 let secs = 0;
 let utterances = []; // {spkIdx, text, time}
 let pendingText = '';
+let lastInterim = '';
 let hasMin = false;
 
 // ── 初期化 ──
@@ -615,6 +616,7 @@ function startRec() {
 
   utterances = [];
   pendingText = '';
+  lastInterim = '';
   document.getElementById('txBox').innerHTML = '';
 
   recognition = new SR();
@@ -629,14 +631,25 @@ function startRec() {
         pendingText += e.results[i][0].transcript;
         commitUtt(pendingText.trim(), curSpk);
         pendingText = '';
+        lastInterim = '';
       } else {
         interim += e.results[i][0].transcript;
       }
     }
+    lastInterim = interim;
     showInterim(interim);
   };
   recognition.onerror = e => { if (e.error !== 'no-speech') showToast('エラー: '+e.error); };
-  recognition.onend = () => { if (isRec) recognition.start(); };
+  recognition.onend = () => {
+    if (!isRec) return;
+    // iOS Safari 対策: 確定前に勝手に終了するケースで中間結果を救済
+    if (lastInterim.trim()) {
+      commitUtt(lastInterim.trim(), curSpk);
+      lastInterim = '';
+    }
+    try { recognition.start(); }
+    catch(e) { setTimeout(() => { if (isRec) { try { recognition.start(); } catch(e2){} } }, 300); }
+  };
   recognition.start();
 
   isRec = true;
@@ -666,6 +679,7 @@ function stopRec() {
   clearInterval(timerIv);
   // interim / pending を強制コミット
   if (pendingText.trim()) { commitUtt(pendingText.trim(), curSpk); pendingText = ''; }
+  if (lastInterim.trim()) { commitUtt(lastInterim.trim(), curSpk); lastInterim = ''; }
   removeInterim();
 
   document.getElementById('micBtn').textContent = '🎤';
